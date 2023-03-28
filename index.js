@@ -3,6 +3,8 @@ var app = express();
 var jwt = require("jsonwebtoken");
 var mysalt = "secretkey";
 var cors = require("cors");
+const PRODUCT_SCHEMA = require("./Product_schema");
+const mongoose = require("mongoose");
 app.use(cors());
 app.use(express.json());
 app.listen(8080, (err) => {
@@ -11,6 +13,17 @@ app.listen(8080, (err) => {
   }
   console.log("Server started successfully");
 });
+const dbUrl =
+  "mongodb+srv://Kshitiz_Agarwal:FJ9EiIfKDWGb6nzS@cluster0.mkzhm.mongodb.net/Products";
+mongoose.set("strictQuery", false);
+mongoose
+  .connect(dbUrl, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => {
+    console.log("connected to database");
+  })
+  .catch((err) => {
+    console.log(err);
+  });
 const loginCredentials = {
   username: "Letsupgrade",
   password: "password@123",
@@ -42,12 +55,29 @@ app.post("/removedp", (req, res) => {
   var decoded = jwt.verify(token, mysalt);
   console.log(decoded);
   if (decoded) {
-    userDetails.avatar = "";
-    var updatedToken = jwt.sign(userDetails, mysalt);
+    const updatedUser = { ...userDetails };
+    updatedUser.avatar = "";
+    var updatedToken = jwt.sign(updatedUser, mysalt);
     res
       .status(200)
       .send({ msg: "DP removed successfully", token: updatedToken });
   } else {
     res.status(401).send({ msg: "Unauthorised request" });
+  }
+});
+
+app.post("/getproducts", async (req, res) => {
+  const products = await PRODUCT_SCHEMA.find();
+
+  res.status(200).send(products);
+});
+
+app.post("/filterproductsbycategory", async (req, res) => {
+  if (req.body.category == "") {
+    const products = await PRODUCT_SCHEMA.find();
+    res.status(200).send(products);
+  } else {
+    const products = await PRODUCT_SCHEMA.find({ Category: req.body.category });
+    res.status(200).send(products);
   }
 });
