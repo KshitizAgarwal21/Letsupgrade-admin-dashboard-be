@@ -81,3 +81,27 @@ app.post("/filterproductsbycategory", async (req, res) => {
     res.status(200).send(products);
   }
 });
+
+app.post("/addproduct", async (req, res) => {
+  const { Name, Shipping, Category, Quantity, Price } = req.body;
+  const ID = "LU_06";
+  const UnitsSold = 100;
+
+  var newProduct = {
+    Name: Name,
+    ID: ID,
+    Category: Category,
+    Quantity: Quantity,
+    Price: Price,
+    Shipping: Shipping,
+    UnitsSold: UnitsSold,
+  };
+
+  const product = new PRODUCT_SCHEMA(newProduct);
+  const stocked = await product.save();
+  if (stocked) {
+    res.status(200).send({ msg: "Product added successfully" });
+  } else {
+    res.status(200).send({ msg: "Some error occured" });
+  }
+});
