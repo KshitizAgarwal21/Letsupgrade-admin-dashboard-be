@@ -4,6 +4,7 @@ var jwt = require("jsonwebtoken");
 var mysalt = "secretkey";
 var cors = require("cors");
 const PRODUCT_SCHEMA = require("./Product_schema");
+const CONSOLIDATED_SCHEMA = require("./Consolidated_schema");
 const mongoose = require("mongoose");
 app.use(cors());
 app.use(express.json());
@@ -67,37 +68,68 @@ app.post("/removedp", (req, res) => {
 });
 
 app.post("/getproducts", async (req, res) => {
-  const products = await PRODUCT_SCHEMA.find();
+  var token = req.headers.authorization;
+  var decoded = jwt.verify(token, mysalt);
 
-  res.status(200).send(products);
+  const products = await CONSOLIDATED_SCHEMA.find({
+    Username: decoded.Username,
+  });
+  const prodArray = products.map((elem) => {
+    return elem.AssociatedProducts;
+  });
+  console.log(prodArray);
+  res.status(200).send(prodArray);
 });
 
 app.post("/filterproductsbycategory", async (req, res) => {
+  var token = req.headers.authorization;
+  var decoded = jwt.verify(token, mysalt);
+
   if (req.body.category == "") {
-    const products = await PRODUCT_SCHEMA.find();
-    res.status(200).send(products);
+    const products = await CONSOLIDATED_SCHEMA.find({
+      Username: decoded.Username,
+    });
+    const prodArray = products.map((elem) => {
+      return elem.AssociatedProducts;
+    });
+    res.status(200).send(prodArray);
   } else {
-    const products = await PRODUCT_SCHEMA.find({ Category: req.body.category });
-    res.status(200).send(products);
+    const products = await CONSOLIDATED_SCHEMA.find({
+      Username: decoded.Username,
+      "AssociatedProducts.Category": req.body.category,
+    });
+
+    const prodArray = products.map((elem) => {
+      return elem.AssociatedProducts;
+    });
+    console.log(prodArray);
+    res.status(200).send(prodArray);
   }
 });
 
 app.post("/addproduct", async (req, res) => {
   const { Name, Shipping, Category, Quantity, Price } = req.body;
-  const ID = "LU_06";
+  var token = req.headers.authorization;
+  var decoded = jwt.verify(token, mysalt);
+  console.log(decoded);
+  const Username = decoded.Username;
+  const ID = "LU_07";
   const UnitsSold = 100;
 
   var newProduct = {
-    Name: Name,
-    ID: ID,
-    Category: Category,
-    Quantity: Quantity,
-    Price: Price,
-    Shipping: Shipping,
-    UnitsSold: UnitsSold,
+    Username: Username,
+    AssociatedProducts: {
+      Name: Name,
+      ID: ID,
+      Category: Category,
+      Quantity: Quantity,
+      Price: Price,
+      Shipping: Shipping,
+      UnitsSold: UnitsSold,
+    },
   };
 
-  const product = new PRODUCT_SCHEMA(newProduct);
+  const product = new CONSOLIDATED_SCHEMA(newProduct);
   const stocked = await product.save();
   if (stocked) {
     res.status(200).send({ msg: "Product added successfully" });
