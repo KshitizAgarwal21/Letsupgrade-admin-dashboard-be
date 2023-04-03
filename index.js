@@ -6,6 +6,7 @@ var cors = require("cors");
 const PRODUCT_SCHEMA = require("./Product_schema");
 const CONSOLIDATED_SCHEMA = require("./Consolidated_schema");
 const mongoose = require("mongoose");
+const USER_SCHEMA = require("./User_Schema");
 app.use(cors());
 app.use(express.json());
 app.listen(8080, (err) => {
@@ -39,6 +40,30 @@ const userDetails = {
   avatar:
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTPoACnzH9x8JQxfPZg9YCZqTLd6JRRDeYKbH7OFYeQiw&usqp=CAU&ec=48665701",
 };
+
+app.post("/createuser", async (req, res) => {
+  var user = {
+    LoginCreds: {
+      username: "Letsupgrade",
+      password: "password@123",
+    },
+    FullName: "John Lester",
+    Username: "Letsupgrade",
+    DOB: "09001999",
+    City: "Bangalore",
+    Email: "student@letsupgarde.io",
+    Phone: "9999999999",
+    avatar:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTPoACnzH9x8JQxfPZg9YCZqTLd6JRRDeYKbH7OFYeQiw&usqp=CAU&ec=48665701",
+  };
+
+  var newUser = new USER_SCHEMA(user);
+
+  const added = await newUser.save();
+  if (added) {
+    console.log(added);
+  }
+});
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -111,10 +136,13 @@ app.post("/addproduct", async (req, res) => {
   const { Name, Shipping, Category, Quantity, Price } = req.body;
   var token = req.headers.authorization;
   var decoded = jwt.verify(token, mysalt);
-  console.log(decoded);
+
   const Username = decoded.Username;
-  const ID = "LU_07";
-  const UnitsSold = 100;
+  const getIdVal = await CONSOLIDATED_SCHEMA.find({ Username: Username });
+  var lastElem = getIdVal.length - 1;
+  var ID = getIdVal[lastElem].AssociatedProducts.ID;
+  ID = parseInt(ID.substring(3)) + 1;
+  ID = "LU_" + ID;
 
   var newProduct = {
     Username: Username,
@@ -125,7 +153,6 @@ app.post("/addproduct", async (req, res) => {
       Quantity: Quantity,
       Price: Price,
       Shipping: Shipping,
-      UnitsSold: UnitsSold,
     },
   };
 
