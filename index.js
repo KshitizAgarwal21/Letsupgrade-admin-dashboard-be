@@ -1,6 +1,8 @@
 var express = require("express");
 var app = express();
 var jwt = require("jsonwebtoken");
+const multer = require("multer");
+const path = require("path");
 var mysalt = "secretkey";
 var cors = require("cors");
 const PRODUCT_SCHEMA = require("./Product_schema");
@@ -15,6 +17,59 @@ app.listen(8080, (err) => {
   }
   console.log("Server started successfully");
 });
+
+app.set("view engine", "ejs");
+app.set("view", path.join(__dirname, "/views"));
+// app.use(express.static(`${__dirname}/public`));
+
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Uploads is the Upload_folder_name
+    cb(null, "uploads");
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + "-" + Date.now() + ".jpg");
+  },
+});
+
+// Define the maximum size for uploading
+// picture i.e. 1 MB. it is optional
+const maxSize = 1 * 1000 * 1000;
+
+var upload = multer({
+  storage: storage,
+  limits: { fileSize: maxSize },
+  fileFilter: function (req, file, cb) {
+    // Set the filetypes, it is optional
+    var filetypes = /jpeg|jpg|png/;
+    var mimetype = filetypes.test(file.mimetype);
+
+    var extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+
+    cb(
+      "Error: File upload only supports the " +
+        "following filetypes - " +
+        filetypes
+    );
+  },
+
+  // mypic is the name of file attribute
+}).single("mypic");
+
+app.post("/upload", (req, res, next) => {
+  upload(req, res, function (err) {
+    if (err) {
+      console.log(err);
+    } else {
+      res.status(200).send({ msg: "file uploaded successfully" });
+    }
+  });
+});
+
 const dbUrl =
   "mongodb+srv://Kshitiz_Agarwal:FJ9EiIfKDWGb6nzS@cluster0.mkzhm.mongodb.net/Products";
 mongoose.set("strictQuery", false);
@@ -64,16 +119,29 @@ app.post("/createuser", async (req, res) => {
     console.log(added);
   }
 });
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
   const { username, password } = req.body;
-
-  if (username === loginCredentials.username) {
-    if (password === loginCredentials.password) {
-      var token = jwt.sign(userDetails, mysalt);
-
+  const userexist = await USER_SCHEMA.findOne({ Username: username });
+  if (userexist) {
+    if (userexist.LoginCreds.password === password) {
+      var token = jwt.sign(userexist, mysalt);
       res.status(200).send(token);
+    } else {
+      res.status(200).send({ msg: "Invalid credentials" });
     }
+    // if (getpassword) {
+    //   // console.log(getpassword.schema);
+    //   // var token = jwt.sign(getpassword, mysalt);
+    //   // res.status(200).send(token);
+    // }
   }
+  // if (username === loginCredentials.username) {
+  //   if (password === loginCredentials.password) {
+  //     var token = jwt.sign(userDetails, mysalt);
+
+  //     res.status(200).send(token);
+  //   }
+  // }
 });
 
 app.post("/removedp", (req, res) => {
