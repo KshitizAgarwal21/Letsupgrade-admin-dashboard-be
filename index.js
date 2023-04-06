@@ -18,54 +18,50 @@ app.listen(8080, (err) => {
   console.log("Server started successfully");
 });
 
-app.set("view engine", "ejs");
-app.set("view", path.join(__dirname, "/views"));
-// app.use(express.static(`${__dirname}/public`));
-
-var storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Uploads is the Upload_folder_name
-    cb(null, "uploads");
+const multerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "../admin-dashboard/public");
   },
-  filename: function (req, file, cb) {
-    cb(null, file.fieldname + "-" + Date.now() + ".jpg");
+  filename: (req, file, cb) => {
+    const ext = file.mimetype.split("/")[1];
+    cb(null, file.fieldname + Date.now() + `.${ext}`);
   },
 });
+const multerFilter = (req, file, cb) => {
+  if (
+    file.mimetype.split("/")[1] === "pdf" ||
+    file.mimetype.split("/")[1] === "jpg" ||
+    file.mimetype.split("/")[1] === "jpeg" ||
+    file.mimetype.split("/")[1] === "png"
+  ) {
+    cb(null, true);
+  } else {
+    cb(new Error("File is not a pdf"), false);
+  }
+};
+const upload = multer({
+  storage: multerStorage,
+  fileFilter: multerFilter,
+}).single("myFile");
 
-// Define the maximum size for uploading
-// picture i.e. 1 MB. it is optional
-const maxSize = 1 * 1000 * 1000;
+app.post("/upload", (req, res) => {
+  var token = req.headers.authorization;
+  var decoded = jwt.verify(token, mysalt);
 
-var upload = multer({
-  storage: storage,
-  limits: { fileSize: maxSize },
-  fileFilter: function (req, file, cb) {
-    // Set the filetypes, it is optional
-    var filetypes = /jpeg|jpg|png/;
-    var mimetype = filetypes.test(file.mimetype);
-
-    var extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    }
-
-    cb(
-      "Error: File upload only supports the " +
-        "following filetypes - " +
-        filetypes
+  upload(req, res, async function (err) {
+    const uploadedFile = await USER_SCHEMA.findOneAndUpdate(
+      { Username: decoded.userexist.Username },
+      { avatar: req.file.filename }
     );
-  },
 
-  // mypic is the name of file attribute
-}).single("mypic");
-
-app.post("/upload", (req, res, next) => {
-  upload(req, res, function (err) {
     if (err) {
       console.log(err);
     } else {
-      res.status(200).send({ msg: "file uploaded successfully" });
+      if (uploadedFile) {
+        res.status(200).send({ msg: "file uploaded successfully" });
+      } else {
+        console.log("some issue");
+      }
     }
   });
 });
@@ -124,7 +120,7 @@ app.post("/login", async (req, res) => {
   const userexist = await USER_SCHEMA.findOne({ Username: username });
   if (userexist) {
     if (userexist.LoginCreds.password === password) {
-      var token = jwt.sign(userexist, mysalt);
+      var token = jwt.sign({ userexist }, mysalt);
       res.status(200).send(token);
     } else {
       res.status(200).send({ msg: "Invalid credentials" });
@@ -144,17 +140,24 @@ app.post("/login", async (req, res) => {
   // }
 });
 
-app.post("/removedp", (req, res) => {
+app.post("/removedp", async (req, res) => {
   var token = req.headers.authorization;
   var decoded = jwt.verify(token, mysalt);
-  console.log(decoded);
+
   if (decoded) {
-    const updatedUser = { ...userDetails };
-    updatedUser.avatar = "";
-    var updatedToken = jwt.sign(updatedUser, mysalt);
-    res
-      .status(200)
-      .send({ msg: "DP removed successfully", token: updatedToken });
+    const removeDp = await USER_SCHEMA.findOneAndUpdate(
+      {
+        Username: decoded.userexist.Username,
+      },
+      { avatar: "" }
+    );
+    const userexist = await USER_SCHEMA.findOne({
+      Username: decoded.userexist.Username,
+    });
+    if (removeDp) {
+      var token = jwt.sign({ userexist }, mysalt);
+      res.status(200).send({ msg: "Dp removed successfully", token: token });
+    }
   } else {
     res.status(401).send({ msg: "Unauthorised request" });
   }
