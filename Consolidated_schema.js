@@ -33,6 +33,10 @@ const schema = new mongoose.Schema({
       type: Number,
       required: true,
     },
+    Picture: {
+      type: String,
+      required: true,
+    },
   },
 });
 const CONSOLIDATED_SCHEMA = mongoose.model("CONSOLIDATED", schema);

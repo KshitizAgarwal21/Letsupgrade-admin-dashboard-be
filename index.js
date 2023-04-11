@@ -66,6 +66,32 @@ app.post("/upload", (req, res) => {
   });
 });
 
+app.post("/uploadprodimages", (req, res) => {
+  var token = req.headers.authorization;
+  var decoded = jwt.verify(token, mysalt);
+
+  upload(req, res, async function (err) {
+    console.log(req.file);
+    console.log(req.body.ID);
+    const uploadedFile = await CONSOLIDATED_SCHEMA.findOneAndUpdate(
+      {
+        Username: decoded.userexist.Username,
+        "AssociatedProducts.ID": req.body.ID,
+      },
+      { "AssociatedProducts.Picture": req.file.filename }
+    );
+
+    if (err) {
+      console.log(err);
+    } else {
+      if (uploadedFile) {
+        res.status(200).send({ msg: "file uploaded successfully" });
+      } else {
+        console.log("some issue");
+      }
+    }
+  });
+});
 const dbUrl =
   "mongodb+srv://Kshitiz_Agarwal:FJ9EiIfKDWGb6nzS@cluster0.mkzhm.mongodb.net/Products";
 mongoose.set("strictQuery", false);
@@ -168,12 +194,12 @@ app.post("/getproducts", async (req, res) => {
   var decoded = jwt.verify(token, mysalt);
 
   const products = await CONSOLIDATED_SCHEMA.find({
-    Username: decoded.Username,
+    Username: decoded.userexist.Username,
   });
   const prodArray = products.map((elem) => {
     return elem.AssociatedProducts;
   });
-  console.log(prodArray);
+
   res.status(200).send(prodArray);
 });
 
@@ -183,7 +209,7 @@ app.post("/filterproductsbycategory", async (req, res) => {
 
   if (req.body.category == "") {
     const products = await CONSOLIDATED_SCHEMA.find({
-      Username: decoded.Username,
+      Username: decoded.userexist.Username,
     });
     const prodArray = products.map((elem) => {
       return elem.AssociatedProducts;
@@ -191,14 +217,14 @@ app.post("/filterproductsbycategory", async (req, res) => {
     res.status(200).send(prodArray);
   } else {
     const products = await CONSOLIDATED_SCHEMA.find({
-      Username: decoded.Username,
+      Username: decoded.userexist.Username,
       "AssociatedProducts.Category": req.body.category,
     });
 
     const prodArray = products.map((elem) => {
       return elem.AssociatedProducts;
     });
-    console.log(prodArray);
+
     res.status(200).send(prodArray);
   }
 });
@@ -208,8 +234,9 @@ app.post("/addproduct", async (req, res) => {
   var token = req.headers.authorization;
   var decoded = jwt.verify(token, mysalt);
 
-  const Username = decoded.Username;
+  const Username = decoded.userexist.Username;
   const getIdVal = await CONSOLIDATED_SCHEMA.find({ Username: Username });
+  console.log(getIdVal);
   var lastElem = getIdVal.length - 1;
   var ID = getIdVal[lastElem].AssociatedProducts.ID;
   ID = parseInt(ID.substring(3)) + 1;
@@ -224,13 +251,14 @@ app.post("/addproduct", async (req, res) => {
       Quantity: Quantity,
       Price: Price,
       Shipping: Shipping,
+      Picture: " ",
     },
   };
 
   const product = new CONSOLIDATED_SCHEMA(newProduct);
   const stocked = await product.save();
   if (stocked) {
-    res.status(200).send({ msg: "Product added successfully" });
+    res.status(200).send({ msg: "Product added successfully", ID: ID });
   } else {
     res.status(200).send({ msg: "Some error occured" });
   }
