@@ -5,7 +5,7 @@ const multer = require("multer");
 const path = require("path");
 var mysalt = "secretkey";
 var cors = require("cors");
-const PRODUCT_SCHEMA = require("./Product_schema");
+const SALES_SCHEMA = require("./Category_Sales");
 const CONSOLIDATED_SCHEMA = require("./Consolidated_schema");
 const mongoose = require("mongoose");
 const USER_SCHEMA = require("./User_Schema");
@@ -262,4 +262,16 @@ app.post("/addproduct", async (req, res) => {
   } else {
     res.status(200).send({ msg: "Some error occured" });
   }
+});
+
+app.post("/getsales", async (req, res) => {
+  var token = req.headers.authorization;
+  var decoded = jwt.verify(token, mysalt);
+
+  const Username = decoded.userexist.Username;
+  const sales = await SALES_SCHEMA.find({ Username: Username });
+  if (sales) {
+    res.status(200).send(sales);
+  }
+  console.log(sales);
 });
